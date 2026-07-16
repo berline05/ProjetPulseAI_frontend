@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "../hooks/useAuth";
 
 // ─── React Icons ───
 import { RiDashboardLine } from "react-icons/ri";
@@ -17,11 +18,24 @@ import { MdOutlinePayment, MdOutlineSupportAgent } from "react-icons/md";
 import { TbRobot } from "react-icons/tb";
 import { BsArrowUpShort } from "react-icons/bs";
 import PaymentWidget from '../components/payments/PaymentWidget';
+import { useDashboardData } from "../hooks/useDashboardData";
+import { useTickets } from "../hooks/useTickets";
+import { getConversationMessages } from "../services/dashboard";
 
 /* ══════════════════════════════════════════════════════════════
    MOCK DATA
 ══════════════════════════════════════════════════════════════ */
-const MOCK_USER = { name: "Kofi Mensah", company: "TechAfrique", plan: "Business", avatar: "KM" };
+function useCurrentUser() {
+  const { user } = useAuth();
+  if (!user) return { name: "Utilisateur", company: "PulsAI", plan: "Starter", avatar: "U" };
+  const avatar = `${user.first_name?.[0] ?? ""}${user.last_name?.[0] ?? ""}`.toUpperCase() || "U";
+  return {
+    name: `${user.first_name} ${user.last_name}`.trim(),
+    company: user.company_name || "PulsAI",
+    plan: user.plan || "Starter",
+    avatar,
+  };
+}
 
 const MOCK_CONVERSATIONS = [
   { id: 1, name: "Sophie Martin",  email: "sophie@acme.fr",    score: 92, status: "hot",  lastMsg: "Quel est le délai de mise en place ?", time: "2 min",  stage: "Négociation",   avatar: "SM", unread: 2 },
@@ -127,7 +141,7 @@ function TicketRow({ ticket, onClick, onEdit, onDelete }) {
       {(onEdit || onDelete) && (
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
           {onEdit && <button onClick={() => onEdit(ticket)} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-[#3590E3]/20 hover:text-[#3590E3] text-white/30 flex items-center justify-center transition-all"><IoPencilOutline size={12} /></button>}
-          {onDelete && <button onClick={() => onDelete(ticket.id)} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-red-400/20 hover:text-red-400 text-white/30 flex items-center justify-center transition-all"><IoTrashOutline size={12} /></button>}
+          {onDelete && <button onClick={() => onDelete(ticket.uuid || ticket.id)} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-red-400/20 hover:text-red-400 text-white/30 flex items-center justify-center transition-all"><IoTrashOutline size={12} /></button>}
         </div>
       )}
     </div>
@@ -140,7 +154,7 @@ function KpiCard({ label, value, delta, Icon, color, index }) {
   const maps = { border: { blue: "border-[#3590E3]/20 hover:border-[#3590E3]/50", green: "border-[#BAF09D]/20 hover:border-[#BAF09D]/50", yellow: "border-yellow-400/20 hover:border-yellow-400/50", purple: "border-purple-400/20 hover:border-purple-400/50" }, glow: { blue: "from-[#3590E3]/8", green: "from-[#BAF09D]/8", yellow: "from-yellow-400/8", purple: "from-purple-400/8" }, iconColor: { blue: "text-[#3590E3]", green: "text-[#BAF09D]", yellow: "text-yellow-400", purple: "text-purple-400" } };
   return (
     <div className={`rounded-2xl border bg-gradient-to-br ${maps.glow[color]} to-transparent p-5 transition-all duration-500 cursor-default ${maps.border[color]} ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`} style={{ transitionDelay: `${index * 80}ms` }}>
-      <div className="flex items-start justify-between mb-3"><div className={`w-9 h-9 rounded-xl bg-white/[0.05] flex items-center justify-center ${maps.iconColor[color]}`}><Icon size={18} /></div><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${delta.startsWith("+") ? "bg-[#BAF09D]/15 text-[#BAF09D]" : "bg-red-400/15 text-red-400"}`}>{delta}</span></div>
+      <div className="flex items-start justify-between mb-3"><div className={`w-9 h-9 rounded-xl bg-white/[0.05] flex items-center justify-center ${maps.iconColor[color]}`}><Icon size={18} /></div><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${delta === "—" ? "bg-white/[0.06] text-white/25" : delta.startsWith("+") ? "bg-[#BAF09D]/15 text-[#BAF09D]" : "bg-red-400/15 text-red-400"}`}>{delta === "—" ? "live" : delta}</span></div>
       <div className="font-unbounded font-black text-2xl text-white tracking-tight">{value}</div>
       <div className="text-xs text-white/40 mt-1">{label}</div>
     </div>
@@ -164,11 +178,12 @@ function TypingIndicator() {
 const EMPTY_TICKET = { title: "", description: "", category: "support", priority: "medium", status: "open", assignedTo: "", client: "", createdAt: new Date().toISOString().split("T")[0], dueDate: "", comments: [], attachments: [] };
 
 function TicketModal({ ticket, onClose, onSave }) {
+  const currentUser = useCurrentUser();
   const [form, setForm] = useState(ticket ? { ...ticket } : { ...EMPTY_TICKET });
   const [newComment, setNewComment] = useState("");
   const isEdit = !!ticket;
   const set = (field, val) => setForm(f => ({ ...f, [field]: val }));
-  const addComment = () => { if (!newComment.trim()) return; setForm(f => ({ ...f, comments: [...f.comments, { author: MOCK_USER.name, text: newComment.trim(), time: "À l'instant" }] })); setNewComment(""); };
+  const addComment = () => { if (!newComment.trim()) return; setForm(f => ({ ...f, comments: [...f.comments, { author: currentUser.name, text: newComment.trim(), time: "À l'instant" }] })); setNewComment(""); };
   const inputCls = "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#3590E3]/50 transition-all";
   const labelCls = "text-[0.65rem] font-medium text-white/40 mb-1.5 block";
   const priorityVal = { low:"basse", medium:"moyenne", high:"haute", urgent:"urgente" };
@@ -220,7 +235,7 @@ function TicketDetailPanel({ ticket, onClose, onEdit, onDelete }) {
           <div className="flex items-center gap-2"><span className="font-mono text-xs text-white/30">{ticket.id}</span><span className={`flex items-center gap-1 text-[0.65rem] font-medium px-2 py-1 rounded-lg ${statusCfg.cls}`}><statusCfg.Icon size={11} />{statusCfg.label}</span></div>
           <div className="flex items-center gap-2">
             <button onClick={() => onEdit(ticket)} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-[#3590E3]/20 hover:text-[#3590E3] text-white/30 flex items-center justify-center transition-all"><IoPencilOutline size={12} /></button>
-            <button onClick={() => { onDelete(ticket.id); onClose(); }} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-red-400/20 hover:text-red-400 text-white/30 flex items-center justify-center transition-all"><IoTrashOutline size={12} /></button>
+            <button onClick={() => { onDelete(ticket.uuid || ticket.id); onClose(); }} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-red-400/20 hover:text-red-400 text-white/30 flex items-center justify-center transition-all"><IoTrashOutline size={12} /></button>
             <button onClick={onClose} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] flex items-center justify-center text-white/30 hover:text-white transition-all"><IoCloseOutline size={16} /></button>
           </div>
         </div>
@@ -248,11 +263,13 @@ const NAV_ITEMS = [
   { id: "automation",    label: "Automation",    Icon: IoFlashOutline                        },
   { id: "analytics",     label: "Analytics",     Icon: IoBarChartOutline                     },
   { id: "contacts",      label: "Contacts",      Icon: IoPeopleOutline                       },
-  { id: "payment",       label: "Paiement",      Icon: HiOutlineCreditCard                   },  // ← NOUVEAU
+  { id: "payment",       label: "Paiement",      Icon: HiOutlineCreditCard                   },
+  { id: "config-ia",     label: "Config IA",     Icon: IoSettingsOutline                     },
   { id: "settings",      label: "Paramètres",    Icon: IoSettingsOutline                     },
 ];
 
 function Sidebar({ activeView, setActiveView, collapsed, setCollapsed }) {
+  const currentUser = useCurrentUser();
   return (
     <aside className={`flex flex-col h-screen border-r border-white/[0.06] bg-[#0d1220] transition-all duration-300 shrink-0 z-30 ${collapsed ? "w-16" : "w-56"}`}>
       <div className="flex items-center justify-between px-4 py-5 border-b border-white/[0.06]">
@@ -270,8 +287,8 @@ function Sidebar({ activeView, setActiveView, collapsed, setCollapsed }) {
         ))}
       </nav>
       <div className={`border-t border-white/[0.06] p-3 flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
-        <Avatar initials={MOCK_USER.avatar} gradient />
-        {!collapsed && <div className="min-w-0 flex-1"><p className="text-xs font-medium text-white/80 truncate">{MOCK_USER.name}</p><p className="text-[0.65rem] text-white/30 truncate">{MOCK_USER.plan}</p></div>}
+        <Avatar initials={currentUser.avatar} gradient />
+        {!collapsed && <div className="min-w-0 flex-1"><p className="text-xs font-medium text-white/80 truncate">{currentUser.name}</p><p className="text-[0.65rem] text-white/30 truncate">{currentUser.plan}</p></div>}
       </div>
     </aside>
   );
@@ -281,6 +298,7 @@ function Sidebar({ activeView, setActiveView, collapsed, setCollapsed }) {
    TOPBAR
 ══════════════════════════════════════════════════════════════ */
 function Topbar({ activeView }) {
+  const currentUser = useCurrentUser();
   const [notifOpen, setNotifOpen] = useState(false);
   const labels = { dashboard: "Dashboard", conversations: "Conversations IA", tickets: "Gestion des tickets", automation: "Automation marketing", analytics: "Analytics", contacts: "Contacts & CRM", payment: "Plans & Paiement", settings: "Paramètres" };
   return (
@@ -297,7 +315,7 @@ function Topbar({ activeView }) {
             </div>
           )}
         </div>
-        <Avatar initials={MOCK_USER.avatar} gradient />
+        <Avatar initials={currentUser.avatar} gradient />
       </div>
     </header>
   );
@@ -306,29 +324,184 @@ function Topbar({ activeView }) {
 /* ══════════════════════════════════════════════════════════════
    PAYMENT VIEW ← NOUVEAU
 ══════════════════════════════════════════════════════════════ */
+const SUBSCRIPTION_PLANS = [
+  {
+    id: "starter", name: "Starter", price: 9900,
+    color: "border-white/[0.12]", accent: "text-white",
+    badge: null,
+    features: ["1 canal", "500 messages / mois", "Widget Web", "Support email"],
+  },
+  {
+    id: "pro", name: "Pro", price: 29900,
+    color: "border-[#3590E3]/50", accent: "text-[#3590E3]",
+    badge: "Populaire",
+    features: ["5 canaux", "5 000 messages / mois", "WhatsApp inclus", "Support prioritaire"],
+  },
+  {
+    id: "enterprise", name: "Enterprise", price: 99900,
+    color: "border-[#BAF09D]/40", accent: "text-[#BAF09D]",
+    badge: "Complet",
+    features: ["Canaux illimités", "Messages illimités", "IA personnalisée", "Support dédié 24/7"],
+  },
+];
+
 function PaymentView() {
+  const { user, refreshUser } = useAuth();
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001";
+
+  const [loadingPlan, setLoadingPlan] = useState(null);
+  const [paymentUrl,  setPaymentUrl]  = useState(null);
+  const [chosenPlan,  setChosenPlan]  = useState(null);
+  const [checking,    setChecking]    = useState(false);
+  const [confirmed,   setConfirmed]   = useState(false);
+  const [error,       setError]       = useState("");
+
+  const currentPlan = (user?.plan || "starter").toLowerCase();
+
+  const handleChoosePlan = async (plan) => {
+    if (plan.id === currentPlan) return;
+    setLoadingPlan(plan.id); setError("");
+    try {
+      const token = localStorage.getItem("pulsai_token");
+      const res = await fetch(`${API_BASE}/api/payment/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          userId: user?.email || "guest",
+          amount: plan.price,
+          reason: `PulsAI ${plan.name} — ${plan.price} FCFA/mois`,
+          name:  `${user?.first_name || ""} ${user?.last_name || ""}`.trim(),
+          email: user?.email || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data?.detail || "Erreur serveur");
+      setChosenPlan(plan);
+      setPaymentUrl(data.payment_url);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
+  const handleVerify = async () => {
+    setChecking(true);
+    await refreshUser();
+    const updated = JSON.parse(localStorage.getItem("pulsai_company") || "{}");
+    if ((updated.plan || "").toLowerCase() === chosenPlan?.id) {
+      setConfirmed(true);
+      setPaymentUrl(null);
+    } else {
+      setError("Plan non encore mis à jour. Patientez quelques secondes et réessayez.");
+    }
+    setChecking(false);
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <div className="flex items-center gap-2 mb-6">
+    <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <div className="flex items-center gap-2 mb-2">
         <HiOutlineCreditCard size={20} className="text-[#3590E3]" />
-        <h1 className="font-unbounded font-black text-xl text-white">Plans & Paiement</h1>
+        <h1 className="font-unbounded font-black text-xl text-white">Abonnement</h1>
       </div>
-      {/* Stats paiement */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        {[
-          { label: "Revenus ce mois",      value: "124 700 FCFA", color: "text-[#BAF09D]",  bg: "bg-[#BAF09D]/10 border-[#BAF09D]/20"  },
-          { label: "Abonnements actifs",   value: "12",           color: "text-[#3590E3]",  bg: "bg-[#3590E3]/10 border-[#3590E3]/20"  },
-          { label: "Paiements en attente", value: "3",            color: "text-yellow-400", bg: "bg-yellow-400/10 border-yellow-400/20" },
-        ].map(({ label, value, color, bg }) => (
-          <div key={label} className={`rounded-2xl border p-4 ${bg}`}>
-            <div className={`font-unbounded font-black text-xl ${color}`}>{value}</div>
-            <div className="text-[0.65rem] text-white/35 mt-0.5">{label}</div>
+      <p className="text-sm text-white/40 mb-8">Choisissez le plan adapté à votre activité. Paiement sécurisé via KKiaPay.</p>
+
+      {/* Plan actuel */}
+      <div className="flex items-center gap-3 mb-8 p-4 bg-white/[0.03] border border-white/[0.07] rounded-2xl">
+        <div className="w-10 h-10 rounded-xl bg-[#3590E3]/10 flex items-center justify-center">
+          <HiOutlineCreditCard size={18} className="text-[#3590E3]" />
+        </div>
+        <div>
+          <p className="text-xs text-white/40">Plan actuel</p>
+          <p className="text-sm font-semibold text-white capitalize">{currentPlan}</p>
+        </div>
+        {confirmed && (
+          <span className="ml-auto text-xs text-[#BAF09D] bg-[#BAF09D]/10 border border-[#BAF09D]/25 px-3 py-1 rounded-full">
+            ✓ Plan mis à jour !
+          </span>
+        )}
+      </div>
+
+      {/* Grille des plans */}
+      {!paymentUrl && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+          {SUBSCRIPTION_PLANS.map((plan) => {
+            const isCurrent = plan.id === currentPlan;
+            return (
+              <div key={plan.id}
+                className={`relative flex flex-col rounded-2xl border-2 p-6 transition-all ${plan.color} ${isCurrent ? "bg-white/[0.04]" : "bg-white/[0.02] hover:bg-white/[0.04]"}`}>
+                {plan.badge && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#3590E3] text-white text-[0.65rem] px-3 py-1 rounded-full font-semibold">
+                    {plan.badge}
+                  </span>
+                )}
+                {isCurrent && (
+                  <span className="absolute top-4 right-4 text-[0.6rem] bg-[#BAF09D]/15 text-[#BAF09D] border border-[#BAF09D]/30 px-2 py-0.5 rounded-full">
+                    Actuel
+                  </span>
+                )}
+                <h3 className={`font-unbounded font-black text-lg mb-1 ${plan.accent}`}>{plan.name}</h3>
+                <div className="mb-4">
+                  <span className={`font-unbounded font-black text-2xl ${plan.accent}`}>{plan.price.toLocaleString("fr")}</span>
+                  <span className="text-white/30 text-xs ml-1">FCFA / mois</span>
+                </div>
+                <ul className="flex-1 space-y-2 mb-6">
+                  {plan.features.map(f => (
+                    <li key={f} className="flex items-center gap-2 text-xs text-white/55">
+                      <span className="text-[#BAF09D]">✓</span>{f}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => handleChoosePlan(plan)}
+                  disabled={isCurrent || loadingPlan === plan.id}
+                  className={`w-full py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    isCurrent
+                      ? "bg-white/[0.05] text-white/30 cursor-default"
+                      : plan.id === "pro"
+                        ? "bg-[#3590E3] text-white hover:bg-[#2a7fd4] disabled:opacity-60"
+                        : "bg-white/[0.08] text-white/70 border border-white/[0.1] hover:bg-white/[0.14] disabled:opacity-60"
+                  }`}>
+                  {loadingPlan === plan.id ? "Génération…" : isCurrent ? "Plan actuel" : "Choisir ce plan →"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Lien de paiement généré */}
+      {paymentUrl && chosenPlan && (
+        <div className="max-w-md mx-auto bg-white/[0.03] border border-[#3590E3]/30 rounded-2xl p-8 text-center mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-[#3590E3]/10 border border-[#3590E3]/20 flex items-center justify-center mx-auto mb-5">
+            <HiOutlineCreditCard size={28} className="text-[#3590E3]" />
           </div>
+          <h2 className="font-unbounded font-black text-lg text-white mb-1">Plan {chosenPlan.name}</h2>
+          <p className="text-sm text-white/40 mb-6">
+            {chosenPlan.price.toLocaleString("fr")} FCFA / mois — paiement sécurisé via KKiaPay
+          </p>
+          <a href={paymentUrl} target="_blank" rel="noopener noreferrer"
+            className="block w-full py-3 rounded-xl bg-[#3590E3] text-white text-sm font-semibold hover:bg-[#2a7fd4] transition-all mb-3">
+            Payer maintenant →
+          </a>
+          <button onClick={handleVerify} disabled={checking}
+            className="block w-full py-2.5 rounded-xl border border-white/[0.08] text-white/40 text-xs hover:text-white/70 transition-all mb-2">
+            {checking ? "Vérification…" : "J'ai payé — Vérifier mon abonnement"}
+          </button>
+          <button onClick={() => { setPaymentUrl(null); setChosenPlan(null); setError(""); }}
+            className="text-xs text-white/20 hover:text-white/40 transition-all">
+            ← Changer de plan
+          </button>
+        </div>
+      )}
+
+      {error && <p className="text-red-400 text-xs text-center mb-4">{error}</p>}
+
+      {/* Moyens de paiement */}
+      <div className="flex flex-wrap justify-center gap-4 text-xs text-white/20 mt-4">
+        {["📱 MTN Mobile Money", "📱 Moov Money", "💳 Carte bancaire", "🏦 Virement"].map(m => (
+          <span key={m}>{m}</span>
         ))}
-      </div>
-      {/* PaymentWidget intégré */}
-      <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
-        <PaymentWidget userId={MOCK_USER.name} />
       </div>
     </div>
   );
@@ -337,18 +510,27 @@ function PaymentView() {
 /* ══════════════════════════════════════════════════════════════
    DASHBOARD HOME
 ══════════════════════════════════════════════════════════════ */
-function DashboardHome({ setActiveView, setSelectedConv }) {
+function DashboardHome({ setActiveView, setSelectedConv, kpisData, conversations: apiConvs, tickets: apiTickets }) {
+  const currentUser = useCurrentUser();
+  const displayConvs = apiConvs?.length > 0 ? apiConvs : MOCK_CONVERSATIONS;
+  const displayTickets = apiTickets?.length > 0 ? apiTickets : INITIAL_TICKETS;
+  const displayKpis = kpisData ? [
+    { ...KPIS[0], value: kpisData.active_conversations, delta: "—" },
+    { ...KPIS[1], value: kpisData.open_tickets, delta: "—" },
+    { ...KPIS[2], value: `${kpisData.conversion_rate}%`, delta: "—" },
+    { ...KPIS[3], value: `${kpisData.total_this_month} conv.`, delta: "—" },
+  ] : KPIS;
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="font-unbounded font-black text-2xl tracking-tight text-white">Bonjour, {MOCK_USER.name.split(" ")[0]}</h1><p className="text-sm text-white/40 mt-1">Voici ce qui se passe aujourd'hui sur PulsAI.</p></div>
-        <div className="flex items-center gap-2 text-xs text-white/30 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-2"><span className="w-1.5 h-1.5 rounded-full bg-[#BAF09D] animate-pulse" />IA active · 24 conv.</div>
+        <div><h1 className="font-unbounded font-black text-2xl tracking-tight text-white">Bonjour, {currentUser.name.split(" ")[0]}</h1><p className="text-sm text-white/40 mt-1">Voici ce qui se passe aujourd'hui sur PulsAI.</p></div>
+        <div className="flex items-center gap-2 text-xs text-white/30 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-2"><span className="w-1.5 h-1.5 rounded-full bg-[#BAF09D] animate-pulse" />IA active · {kpisData?.active_conversations ?? 24} conv.</div>
       </div>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">{KPIS.map((kpi, i) => <KpiCard key={kpi.label} {...kpi} index={i} />)}</div>
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">{displayKpis.map((kpi, i) => <KpiCard key={kpi.label} {...kpi} index={i} />)}</div>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         <div className="xl:col-span-2 bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><HiOutlineFire size={16} className="text-red-400" /><h2 className="font-unbounded font-semibold text-sm text-white">Conversations chaudes</h2></div><button onClick={() => setActiveView("conversations")} className="text-xs text-[#3590E3] hover:underline">Voir tout →</button></div>
-          {MOCK_CONVERSATIONS.filter(c => c.status !== "cold").slice(0, 4).map(conv => (
+          {displayConvs.filter(c => c.status !== "cold").slice(0, 4).map(conv => (
             <div key={conv.id} onClick={() => { setSelectedConv(conv.id); setActiveView("conversations"); }} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.04] cursor-pointer transition-all group">
               <div className="relative"><Avatar initials={conv.avatar} /><span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0d1220] ${conv.status === "hot" ? "bg-red-400" : "bg-yellow-400"}`} /></div>
               <div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className="text-sm font-medium text-white/80 group-hover:text-white transition-colors">{conv.name}</span><ScoreBadge score={conv.score} /></div><p className="text-xs text-white/35 truncate mt-0.5">{conv.lastMsg}</p></div>
@@ -364,7 +546,7 @@ function DashboardHome({ setActiveView, setSelectedConv }) {
       </div>
       <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
         <div className="flex items-center justify-between mb-3"><div className="flex items-center gap-2"><IoTicketOutline size={15} className="text-[#3590E3]" /><h2 className="font-unbounded font-semibold text-sm text-white">Tickets récents</h2></div><button onClick={() => setActiveView("tickets")} className="text-xs text-[#3590E3] hover:underline">Voir tout →</button></div>
-        {INITIAL_TICKETS.map(t => <TicketRow key={t.id} ticket={t} />)}
+        {displayTickets.slice(0, 4).map(t => <TicketRow key={t.id || t.uuid} ticket={t} />)}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {AUTOMATIONS.map(({ Icon, title, status, runs }) => (
@@ -382,17 +564,28 @@ function DashboardHome({ setActiveView, setSelectedConv }) {
 /* ══════════════════════════════════════════════════════════════
    CONVERSATIONS VIEW
 ══════════════════════════════════════════════════════════════ */
-function ConversationsView({ selectedConv, setSelectedConv, setActiveView }) {
-  const [messages, setMessages]   = useState(MOCK_CHAT_HISTORY[selectedConv] || []);
+function ConversationsView({ selectedConv, setSelectedConv, setActiveView, conversations: apiConvs }) {
+  const [messages, setMessages]   = useState([]);
   const [input, setInput]         = useState("");
   const [typing, setTyping]       = useState(false);
   const [handedOff, setHandedOff] = useState(false);
   const messagesEndRef            = useRef(null);
 
-  useEffect(() => { setMessages(MOCK_CHAT_HISTORY[selectedConv] || []); setHandedOff(false); }, [selectedConv]);
+  useEffect(() => {
+    setHandedOff(false);
+    if (!selectedConv) { setMessages([]); return; }
+    getConversationMessages(selectedConv)
+      .then(msgs => setMessages(msgs.map(m => ({
+        role: m.from === "ia" ? "ai" : "user",
+        text: m.text,
+        time: new Date(m.timestamp).toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" }),
+      }))))
+      .catch(() => setMessages(MOCK_CHAT_HISTORY[selectedConv] || []));
+  }, [selectedConv]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, typing]);
 
-  const activeConv = MOCK_CONVERSATIONS.find(c => c.id === selectedConv) || MOCK_CONVERSATIONS[0];
+  const displayConvs = apiConvs?.length > 0 ? apiConvs : MOCK_CONVERSATIONS;
+  const activeConv = displayConvs.find(c => c.id === selectedConv) || displayConvs[0] || null;
 
   const sendMessage = useCallback(async () => {
     if (!input.trim()) return;
@@ -403,13 +596,21 @@ function ConversationsView({ selectedConv, setSelectedConv, setActiveView }) {
     setMessages(m => [...m, { role: "ai", text: AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)], time: new Date().toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" }) }]);
   }, [input]);
 
+  if (!activeConv) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-white/20 text-sm">
+        Aucune conversation disponible.
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* Liste conversations */}
       <div className="w-72 shrink-0 border-r border-white/[0.06] flex flex-col">
         <div className="p-4 border-b border-white/[0.06]"><div className="relative"><input type="text" placeholder="Rechercher…" className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder:text-white/25 outline-none focus:border-[#3590E3]/50 transition-all" /><IoSearchOutline size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" /></div></div>
         <div className="flex-1 overflow-y-auto py-2">
-          {MOCK_CONVERSATIONS.map(conv => (
+          {displayConvs.map(conv => (
             <button key={conv.id} onClick={() => setSelectedConv(conv.id)} className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.04] transition-all ${selectedConv === conv.id ? "bg-[#3590E3]/10 border-r-2 border-[#3590E3]" : ""}`}>
               <div className="relative shrink-0"><Avatar initials={conv.avatar} /><span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0d1220] ${conv.status === "hot" ? "bg-red-400" : conv.status === "warm" ? "bg-yellow-400" : "bg-white/20"}`} /></div>
               <div className="flex-1 min-w-0"><div className="flex items-center justify-between"><span className="text-xs font-medium text-white/80 truncate">{conv.name}</span><span className="text-[0.6rem] text-white/25 shrink-0 ml-1">{conv.time}</span></div><p className="text-[0.65rem] text-white/30 truncate mt-0.5">{conv.lastMsg}</p><div className="flex items-center gap-2 mt-1"><span className="text-[0.55rem] text-white/20">{conv.stage}</span><ScoreBadge score={conv.score} /></div></div>
@@ -505,10 +706,8 @@ function PlaceholderView({ title, description, Icon }) {
 /* ══════════════════════════════════════════════════════════════
    TICKETS VIEW
 ══════════════════════════════════════════════════════════════ */
-let ticketCounter = 42;
-
-function TicketsView() {
-  const [tickets, setTickets]             = useState(INITIAL_TICKETS);
+function TicketsView({ tickets: propTickets, addTicket, editTicket, removeTicket }) {
+  const displayTickets = propTickets?.length > 0 ? propTickets : INITIAL_TICKETS;
   const [modalOpen, setModalOpen]         = useState(false);
   const [editingTicket, setEditingTicket] = useState(null);
   const [detailTicket, setDetailTicket]   = useState(null);
@@ -519,16 +718,36 @@ function TicketsView() {
 
   const openCreate = () => { setEditingTicket(null); setModalOpen(true); };
   const openEdit   = (t)  => { setEditingTicket(t);  setModalOpen(true); setDetailTicket(null); };
-  const handleSave = (form) => { if (editingTicket) { setTickets(ts => ts.map(t => t.id === form.id ? { ...form } : t)); } else { ticketCounter++; setTickets(ts => [{ ...form, id: `T-0${ticketCounter}` }, ...ts]); } setModalOpen(false); setEditingTicket(null); };
-  const handleDelete = (id) => { setTickets(ts => ts.filter(t => t.id !== id)); setDeleteConfirm(null); };
-  const filtered = tickets.filter(t => { if (filterStatus !== "all" && t.status !== filterStatus) return false; if (filterPriority !== "all" && t.priority !== filterPriority) return false; if (search && !t.title.toLowerCase().includes(search.toLowerCase()) && !t.client?.toLowerCase().includes(search.toLowerCase())) return false; return true; });
+  const handleSave = async (form) => {
+    try {
+      if (editingTicket && editTicket) {
+        await editTicket(editingTicket.uuid, form);
+      } else if (addTicket) {
+        await addTicket(form);
+      }
+    } catch (err) {
+      console.error("Erreur ticket:", err);
+    }
+    setModalOpen(false);
+    setEditingTicket(null);
+  };
+  const handleDelete = async (uuid) => {
+    try {
+      if (removeTicket) await removeTicket(uuid);
+    } catch (err) {
+      console.error("Erreur suppression:", err);
+    }
+    setDeleteConfirm(null);
+    setDetailTicket(null);
+  };
+  const filtered = displayTickets.filter(t => { if (filterStatus !== "all" && t.status !== filterStatus) return false; if (filterPriority !== "all" && t.priority !== filterPriority) return false; if (search && !t.title.toLowerCase().includes(search.toLowerCase()) && !t.client?.toLowerCase().includes(search.toLowerCase())) return false; return true; });
   const statusLabels   = { all: "Tous", open: "Ouvert", pending: "En attente", "in-progress": "En cours", resolved: "Résolu", closed: "Fermé" };
   const priorityLabels = { all: "Toutes", low: "Basse", medium: "Moyenne", high: "Haute", urgent: "Urgente" };
-  const stats = { open: tickets.filter(t => t.status === "open").length, inProgress: tickets.filter(t => t.status === "in-progress" || t.status === "pending").length, resolved: tickets.filter(t => t.status === "resolved" || t.status === "closed").length, high: tickets.filter(t => t.priority === "high" || t.priority === "urgent").length };
+  const stats = { open: displayTickets.filter(t => t.status === "open").length, inProgress: displayTickets.filter(t => t.status === "in-progress" || t.status === "pending").length, resolved: displayTickets.filter(t => t.status === "resolved" || t.status === "closed").length, high: displayTickets.filter(t => t.priority === "high" || t.priority === "urgent").length };
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-5">
-      <div className="flex items-center justify-between"><div className="flex items-center gap-2"><IoTicketOutline size={20} className="text-[#3590E3]" /><h1 className="font-unbounded font-black text-xl text-white">Tickets</h1><span className="text-[0.65rem] font-unbounded font-bold bg-[#3590E3]/20 text-[#3590E3] rounded-full px-2 py-0.5">{tickets.length}</span></div><button onClick={openCreate} className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl bg-[#3590E3] text-white hover:bg-[#2a7fd4] transition-all font-medium"><IoAddOutline size={16} /> Nouveau ticket</button></div>
+      <div className="flex items-center justify-between"><div className="flex items-center gap-2"><IoTicketOutline size={20} className="text-[#3590E3]" /><h1 className="font-unbounded font-black text-xl text-white">Tickets</h1><span className="text-[0.65rem] font-unbounded font-bold bg-[#3590E3]/20 text-[#3590E3] rounded-full px-2 py-0.5">{displayTickets.length}</span></div><button onClick={openCreate} className="flex items-center gap-2 text-sm px-4 py-2 rounded-xl bg-[#3590E3] text-white hover:bg-[#2a7fd4] transition-all font-medium"><IoAddOutline size={16} /> Nouveau ticket</button></div>
       <div className="grid grid-cols-4 gap-3">{[{ label: "Ouverts", value: stats.open, color: "text-[#3590E3]", bg: "bg-[#3590E3]/10 border-[#3590E3]/20" }, { label: "En cours", value: stats.inProgress, color: "text-yellow-400", bg: "bg-yellow-400/10 border-yellow-400/20" }, { label: "Résolus", value: stats.resolved, color: "text-[#BAF09D]", bg: "bg-[#BAF09D]/10 border-[#BAF09D]/20" }, { label: "Haute prio.", value: stats.high, color: "text-red-400", bg: "bg-red-400/10 border-red-400/20" }].map(({ label, value, color, bg }) => (<div key={label} className={`rounded-xl border p-3 ${bg}`}><div className={`font-unbounded font-black text-xl ${color}`}>{value}</div><div className="text-[0.65rem] text-white/35 mt-0.5">{label}</div></div>))}</div>
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative"><input type="text" placeholder="Rechercher…" value={search} onChange={e => setSearch(e.target.value)} className="bg-white/[0.04] border border-white/[0.08] rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#3590E3]/50 transition-all w-52" /><IoSearchOutline size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" /></div>
@@ -544,10 +763,298 @@ function TicketsView() {
             <div className="w-12 h-12 rounded-xl bg-red-400/10 border border-red-400/20 flex items-center justify-center mx-auto mb-4"><IoTrashOutline size={20} className="text-red-400" /></div>
             <h3 className="font-unbounded font-semibold text-sm text-white text-center mb-2">Supprimer le ticket</h3>
             <p className="text-xs text-white/40 text-center mb-6">Cette action est irréversible.</p>
-            <div className="flex gap-3"><button onClick={() => setDeleteConfirm(null)} className="flex-1 text-xs py-2.5 rounded-xl border border-white/[0.08] text-white/40 hover:text-white/70 transition-all">Annuler</button><button onClick={() => { handleDelete(deleteConfirm); setDetailTicket(null); }} className="flex-1 text-xs py-2.5 rounded-xl bg-red-400/20 text-red-400 hover:bg-red-400/30 font-medium transition-all">Supprimer</button></div>
+            <div className="flex gap-3"><button onClick={() => setDeleteConfirm(null)} className="flex-1 text-xs py-2.5 rounded-xl border border-white/[0.08] text-white/40 hover:text-white/70 transition-all">Annuler</button><button onClick={() => handleDelete(deleteConfirm)} className="flex-1 text-xs py-2.5 rounded-xl bg-red-400/20 text-red-400 hover:bg-red-400/30 font-medium transition-all">Supprimer</button></div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONFIG IA VIEW
+══════════════════════════════════════════════════════════════ */
+const TONES_CFG = [
+  { id: "professional", label: "Professionnel" },
+  { id: "friendly",     label: "Chaleureux"    },
+  { id: "formal",       label: "Formel"        },
+  { id: "casual",       label: "Informel"      },
+];
+const CHANNELS_CFG = [
+  { id: "web",      label: "Widget Web" },
+  { id: "whatsapp", label: "WhatsApp"   },
+  { id: "telegram", label: "Telegram"   },
+  { id: "email",    label: "Email"      },
+];
+
+function ConfigIAView() {
+  const { user, setUser } = useAuth();
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001";
+
+  const [form, setForm] = useState({
+    bot_name:        user?.bot_name        || "Assistant",
+    sector:          user?.sector          || "",
+    ai_tone:         user?.ai_tone         || "professional",
+    ai_instructions: user?.ai_instructions || "",
+    ai_products:     user?.ai_products     || [],
+    active_channels: user?.active_channels || ["web"],
+  });
+  const [saving, setSaving]   = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [newProd, setNewProd] = useState({ name: "", description: "", price: "" });
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const toggleCh = (id) => set("active_channels",
+    form.active_channels.includes(id)
+      ? form.active_channels.filter(c => c !== id)
+      : [...form.active_channels, id]
+  );
+
+  const addProd = () => {
+    if (!newProd.name.trim()) return;
+    set("ai_products", [...form.ai_products, { ...newProd }]);
+    setNewProd({ name: "", description: "", price: "" });
+  };
+
+  const save = async () => {
+    setSaving(true); setSuccess(false);
+    try {
+      const token = localStorage.getItem("pulsai_token");
+      const res = await fetch(`${API_BASE}/api/auth/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || "Erreur");
+      setUser(data.company);
+      localStorage.setItem("pulsai_company", JSON.stringify(data.company));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldCls = "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white text-sm outline-none focus:border-[#3590E3] focus:ring-2 focus:ring-[#3590E3]/15";
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <h1 className="font-unbounded font-black text-xl text-white mb-1">Configuration IA</h1>
+      <p className="text-sm text-white/40 mb-8">Personnalisez le comportement de votre assistant IA.</p>
+
+      <div className="max-w-2xl space-y-6">
+        {/* Identité */}
+        <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-white mb-4">Identité du bot</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-white/40 mb-1.5">Nom du bot</label>
+              <input value={form.bot_name} onChange={e => set("bot_name", e.target.value)} className={fieldCls} placeholder="Assistant" />
+            </div>
+            <div>
+              <label className="block text-xs text-white/40 mb-1.5">Secteur</label>
+              <input value={form.sector} onChange={e => set("sector", e.target.value)} className={fieldCls} placeholder="Commerce, Santé…" />
+            </div>
+          </div>
+        </div>
+
+        {/* Ton */}
+        <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-white mb-4">Ton de communication</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {TONES_CFG.map(t => (
+              <button key={t.id} onClick={() => set("ai_tone", t.id)}
+                className={`py-2.5 rounded-xl text-xs font-medium border transition-all ${form.ai_tone === t.id ? "bg-[#3590E3]/15 border-[#3590E3]/50 text-[#3590E3]" : "bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white/80"}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Canaux actifs */}
+        <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-white mb-4">Canaux actifs</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {CHANNELS_CFG.map(ch => (
+              <button key={ch.id} onClick={() => toggleCh(ch.id)}
+                className={`py-2.5 rounded-xl text-xs font-medium border transition-all ${form.active_channels.includes(ch.id) ? "bg-[#3590E3]/15 border-[#3590E3]/50 text-[#3590E3]" : "bg-white/[0.03] border-white/[0.06] text-white/50 hover:text-white/80"}`}>
+                {ch.label} {form.active_channels.includes(ch.id) ? "✓" : ""}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Instructions */}
+        <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-white mb-4">Instructions personnalisées</h2>
+          <textarea value={form.ai_instructions} onChange={e => set("ai_instructions", e.target.value)}
+            rows={4} placeholder="Ex : Toujours proposer une démo avant de mentionner les prix. Ne jamais critiquer la concurrence…"
+            className={`${fieldCls} resize-none`} />
+        </div>
+
+        {/* Produits */}
+        <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-white mb-4">Produits / Services</h2>
+          {form.ai_products.map((p, i) => (
+            <div key={i} className="flex items-center gap-3 mb-2 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-white font-medium">{p.name}</p>
+                <p className="text-[10px] text-white/30">{p.description} — {p.price} FCFA</p>
+              </div>
+              <button onClick={() => set("ai_products", form.ai_products.filter((_, j) => j !== i))}
+                className="text-red-400/50 hover:text-red-400 text-xs">✕</button>
+            </div>
+          ))}
+          <div className="flex gap-2 mt-3">
+            <input value={newProd.name} onChange={e => setNewProd(p => ({ ...p, name: e.target.value }))}
+              placeholder="Nom du produit" className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-white text-xs outline-none focus:border-[#3590E3]" />
+            <input value={newProd.price} onChange={e => setNewProd(p => ({ ...p, price: e.target.value }))}
+              placeholder="Prix FCFA" type="number" className="w-28 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-white text-xs outline-none focus:border-[#3590E3]" />
+            <button onClick={addProd} className="px-4 py-2 rounded-lg bg-[#3590E3]/20 text-[#3590E3] text-xs hover:bg-[#3590E3]/30">+</button>
+          </div>
+          <input value={newProd.description} onChange={e => setNewProd(p => ({ ...p, description: e.target.value }))}
+            placeholder="Description (optionnel)" className="w-full mt-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/10 text-white text-xs outline-none focus:border-[#3590E3]" />
+        </div>
+
+        {/* Save */}
+        <button onClick={save} disabled={saving}
+          className={`w-full py-3 rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${success ? "bg-green-500/20 border border-green-500/40 text-green-400" : "bg-[#3590E3] text-white hover:bg-[#2a7fd4] disabled:opacity-60"}`}>
+          {saving ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Enregistrement…</> : success ? "✓ Sauvegardé !" : "Sauvegarder la configuration"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SETTINGS VIEW
+══════════════════════════════════════════════════════════════ */
+function SettingsView() {
+  const { user, refreshUser } = useAuth();
+  const [apiKey, setApiKey] = useState(user?.api_key || "");
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001";
+  const snippetUrl = `${window.location.origin}/widget-loader.js`;
+  const snippet = apiKey
+    ? `<script src="${snippetUrl}" data-api-key="${apiKey}" defer></script>`
+    : "Générez d'abord une clé API.";
+
+  const generateKey = async () => {
+    setGenerating(true);
+    try {
+      const token = localStorage.getItem("pulsai_token");
+      const res = await fetch(`${API_BASE}/api/auth/generate-api-key`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.api_key) {
+        setApiKey(data.api_key);
+        await refreshUser();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copySnippet = () => {
+    if (!apiKey) return;
+    navigator.clipboard.writeText(snippet).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const inputCls = "w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-white/20 outline-none focus:border-[#3590E3]/50 transition-all font-mono";
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex items-center gap-2">
+        <IoSettingsOutline size={20} className="text-[#3590E3]" />
+        <h1 className="font-unbounded font-black text-xl text-white">Paramètres</h1>
+      </div>
+
+      {/* Widget intégration */}
+      <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <HiOutlineChip size={16} className="text-[#3590E3]" />
+          <h2 className="font-unbounded font-semibold text-sm text-white">Widget Chat Embeddable</h2>
+          <span className="text-[0.6rem] font-semibold px-2 py-0.5 rounded-full bg-[#BAF09D]/10 text-[#BAF09D] border border-[#BAF09D]/20">Niveau 2</span>
+        </div>
+        <p className="text-xs text-white/40 mb-5 leading-relaxed">
+          Intégrez un chat IA sur le site de votre entreprise. Vos clients peuvent interagir directement avec l'assistant PulsAI.
+        </p>
+
+        {/* Clé API */}
+        <div className="mb-4">
+          <label className="text-[0.65rem] font-medium text-white/40 mb-1.5 block">Clé API Widget</label>
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              readOnly
+              value={apiKey || "Aucune clé générée"}
+              style={{ opacity: apiKey ? 1 : 0.4 }}
+            />
+            <button
+              onClick={generateKey}
+              disabled={generating}
+              className="shrink-0 flex items-center gap-2 text-xs px-4 py-2 rounded-xl bg-[#3590E3]/20 text-[#3590E3] hover:bg-[#3590E3]/30 disabled:opacity-40 transition-all font-medium whitespace-nowrap"
+            >
+              {generating ? "…" : apiKey ? "Renouveler" : "Générer"}
+            </button>
+          </div>
+          {apiKey && (
+            <p className="text-[0.6rem] text-yellow-400/60 mt-1.5">
+              Attention : renouveler la clé désactivera l'ancien snippet.
+            </p>
+          )}
+        </div>
+
+        {/* Snippet */}
+        {apiKey && (
+          <div>
+            <label className="text-[0.65rem] font-medium text-white/40 mb-1.5 block">Code à coller avant la balise &lt;/body&gt;</label>
+            <div className="relative">
+              <pre className="bg-[#0B0F1A] border border-white/[0.08] rounded-xl p-4 text-xs text-[#BAF09D]/80 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">{snippet}</pre>
+              <button
+                onClick={copySnippet}
+                className="absolute top-2 right-2 text-[0.6rem] px-2 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-white/40 hover:text-white transition-all"
+              >
+                {copied ? "✓ Copié" : "Copier"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Profil entreprise */}
+      <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <IoPeopleOutline size={16} className="text-[#3590E3]" />
+          <h2 className="font-unbounded font-semibold text-sm text-white">Informations du compte</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            { label: "Prénom", value: user?.first_name },
+            { label: "Nom", value: user?.last_name },
+            { label: "Email", value: user?.email },
+            { label: "Entreprise", value: user?.company_name },
+            { label: "Plan", value: user?.plan },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <p className="text-[0.6rem] text-white/25 mb-1">{label}</p>
+              <p className="text-xs text-white/70 font-medium">{value || "—"}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -557,19 +1064,28 @@ function TicketsView() {
 ══════════════════════════════════════════════════════════════ */
 export default function DashboardPage() {
   const [activeView,   setActiveView]   = useState("dashboard");
-  const [selectedConv, setSelectedConv] = useState(1);
+  const [selectedConv, setSelectedConv] = useState(null);
   const [collapsed,    setCollapsed]    = useState(false);
+  const { kpisData, conversations } = useDashboardData();
+  const { tickets, addTicket, editTicket, removeTicket } = useTickets();
+
+  useEffect(() => {
+    if (!selectedConv && conversations.length > 0) {
+      setSelectedConv(conversations[0].id);
+    }
+  }, [conversations, selectedConv]);
 
   const renderView = () => {
     switch (activeView) {
-      case "dashboard":     return <DashboardHome setActiveView={setActiveView} setSelectedConv={setSelectedConv} />;
-      case "conversations": return <ConversationsView selectedConv={selectedConv} setSelectedConv={setSelectedConv} setActiveView={setActiveView} />;
-      case "tickets":       return <TicketsView />;
-      case "payment":       return <PaymentView />;  // ← NOUVEAU
+      case "dashboard":     return <DashboardHome setActiveView={setActiveView} setSelectedConv={setSelectedConv} kpisData={kpisData} conversations={conversations} tickets={tickets} />;
+      case "conversations": return <ConversationsView selectedConv={selectedConv} setSelectedConv={setSelectedConv} setActiveView={setActiveView} conversations={conversations} />;
+      case "tickets":       return <TicketsView tickets={tickets} addTicket={addTicket} editTicket={editTicket} removeTicket={removeTicket} />;
+      case "payment":       return <PaymentView />;
       case "automation":    return <PlaceholderView title="Automation"     Icon={IoFlashOutline}    description="Configurez vos séquences emails, workflows et déclencheurs automatiques." />;
       case "analytics":     return <PlaceholderView title="Analytics"      Icon={IoBarChartOutline} description="Visualisez vos KPIs, taux de conversion et performances de l'IA." />;
       case "contacts":      return <PlaceholderView title="Contacts & CRM" Icon={IoPeopleOutline}   description="Gérez votre base de contacts et enrichissez vos données clients." />;
-      case "settings":      return <PlaceholderView title="Paramètres"     Icon={IoSettingsOutline} description="Configurez votre compte, intégrations, équipe et préférences IA." />;
+      case "config-ia":     return <ConfigIAView />;
+      case "settings":      return <SettingsView />;
       default: return null;
     }
   };

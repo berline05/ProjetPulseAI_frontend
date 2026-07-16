@@ -1,5 +1,5 @@
 import React from 'react';
-import { AuthProvider } from '../hooks/useAuth';
+import { AuthProvider } from './AuthContext';
 
 export default function AppContext({ children }) {
   return (

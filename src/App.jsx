@@ -1,10 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { isAuthenticated } from "./services/auth";
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
-import LandingPage from './pages/Landingpage.js'
+import LandingPage from './pages/Landingpage.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import VerifyEmailPage from "./pages/VerifyEmailPage";
+import WidgetPage from "./pages/WidgetPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Route publique uniquement (redirige si déjà connecté)
@@ -32,12 +34,19 @@ function App() {
         />
 
         <Route path='/dashboard' element={
-          <ProtectedRoute> 
-            <Dashboard /> 
-          </ProtectedRoute>} 
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>}
+        />
+        <Route path='/onboarding' element={
+          <ProtectedRoute>
+            <OnboardingPage />
+          </ProtectedRoute>}
         />
         {/* Vérification email — accessible sans connexion */}
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        {/* Widget chat — accessible en iframe depuis les sites clients */}
+        <Route path="/widget" element={<WidgetPage />} />
       </Routes>
   )
 }

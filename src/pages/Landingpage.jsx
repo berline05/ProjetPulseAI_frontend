@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, Ref } from "react";
-import { 
+import { useEffect, useRef, useState } from "react";
+import {
   FiMessageCircle,
   FiBarChart2,
   FiZap,
@@ -7,19 +7,16 @@ import {
   FiMail,
   FiLink,
   FiLock,
-  FiCheck
+  FiCheck,
 } from "react-icons/fi";
-
 import { HiSparkles } from "react-icons/hi";
 import { FaRobot } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { IoTicketOutline } from "react-icons/io5";
 
 /* ─── Tiny hook for intersection observer fade-in ─── */
-function useFadeIn<T extends HTMLElement = HTMLDivElement>(
-  options = {},
-): [Ref<T>, boolean] {
-  const ref = useRef<T>(null);
+function useFadeIn(options = {}) {
+  const ref = useRef(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -53,13 +50,7 @@ function TypingDots() {
 }
 
 /* ─── Counter animation ─── */
-function AnimatedCounter({
-  target,
-  suffix = "",
-}: {
-  target: number;
-  suffix?: string;
-}) {
+function AnimatedCounter({ target, suffix = "" }) {
   const [count, setCount] = useState(0);
   const [ref, visible] = useFadeIn();
   useEffect(() => {
@@ -84,14 +75,7 @@ function AnimatedCounter({
 }
 
 /* ─── Feature card ─── */
-interface FeatureCardProps {
- icon: React.ReactNode;
-  title: string;
-  desc: string;
-  delay?: number;
-}
-
-function FeatureCard({ icon, title, desc, delay = 0 }: FeatureCardProps) {
+function FeatureCard({ icon, title, desc, delay = 0 }) {
   const [ref, visible] = useFadeIn();
   return (
     <div
@@ -113,21 +97,7 @@ function FeatureCard({ icon, title, desc, delay = 0 }: FeatureCardProps) {
 }
 
 /* ─── Pricing card ─── */
-function PricingCard({
-  name,
-  price,
-  desc,
-  features,
-  featured = false,
-  delay = 0,
-}: {
-  name: string;
-  price: string;
-  desc: string;
-  features: string[];
-  featured?: boolean;
-  delay?: number;
-}) {
+function PricingCard({ name, price, desc, features, featured = false, delay = 0 }) {
   const [ref, visible] = useFadeIn();
   return (
     <div
@@ -196,7 +166,6 @@ export default function LandingPage() {
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_20%_10%,rgba(53,144,227,0.18)_0%,transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_80%_80%,rgba(186,240,157,0.10)_0%,transparent_60%)]" />
-        {/* Grid */}
         <div
           className="absolute inset-0 opacity-[0.025]"
           style={{
@@ -253,9 +222,7 @@ export default function LandingPage() {
       >
         <h1
           className={`font-unbounded font-black text-5xl md:text-7xl leading-[1.05] tracking-tight max-w-4xl transition-all duration-700 delay-100 ${
-            heroVisible
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-6"
+            heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
           }`}
         >
           Vendez plus vite. <span className="text-[#3590E3]">Automatisez</span>{" "}
@@ -264,9 +231,7 @@ export default function LandingPage() {
 
         <p
           className={`text-lg text-white/50 max-w-xl mt-6 leading-relaxed font-light transition-all duration-700 delay-200 ${
-            heroVisible
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-6"
+            heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
           }`}
         >
           PulsAI combine IA conversationnelle, gestion de tickets et
@@ -276,9 +241,7 @@ export default function LandingPage() {
 
         <div
           className={`flex flex-wrap gap-4 justify-center mt-10 transition-all duration-700 delay-300 ${
-            heroVisible
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-6"
+            heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
           }`}
         >
           <Link
@@ -298,9 +261,7 @@ export default function LandingPage() {
         {/* Metrics */}
         <div
           className={`flex gap-12 mt-16 flex-wrap justify-center transition-all duration-700 delay-500 ${
-            heroVisible
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-6"
+            heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
           }`}
         >
           {[
@@ -312,9 +273,7 @@ export default function LandingPage() {
               <div className="font-unbounded font-black text-3xl bg-gradient-to-b from-white to-white/50 bg-clip-text text-transparent">
                 <AnimatedCounter target={val} suffix={suffix} />
               </div>
-              <div className="text-xs text-white/40 mt-1 tracking-wider">
-                {label}
-              </div>
+              <div className="text-xs text-white/40 mt-1 tracking-wider">{label}</div>
             </div>
           ))}
         </div>
@@ -340,12 +299,8 @@ export default function LandingPage() {
                 MENU
               </p>
               {[
-                {
-                  icon: <FiMessageCircle />,
-                  label: "Conversations",
-                  active: true,
-                },
-                { icon: < IoTicketOutline />, label: "Tickets" },
+                { icon: <FiMessageCircle />, label: "Conversations", active: true },
+                { icon: <IoTicketOutline />, label: "Tickets" },
                 { icon: <FiBarChart2 />, label: "Analytics" },
                 { icon: <FiZap />, label: "Automation" },
                 { icon: <FiUsers />, label: "CRM" },
@@ -366,12 +321,8 @@ export default function LandingPage() {
             <div className="p-6 flex flex-col gap-4">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <p className="font-unbounded font-semibold text-sm">
-                    Sophie Martin
-                  </p>
-                  <p className="text-xs text-white/35 mt-0.5">
-                    Lead qualifié · Score 87/100
-                  </p>
+                  <p className="font-unbounded font-semibold text-sm">Sophie Martin</p>
+                  <p className="text-xs text-white/35 mt-0.5">Lead qualifié · Score 87/100</p>
                 </div>
                 <span className="text-xs px-3 py-1 rounded-lg bg-[#BAF09D]/10 border border-[#BAF09D]/25 text-[#BAF09D]">
                   IA Activée
@@ -379,18 +330,9 @@ export default function LandingPage() {
               </div>
               <div className="flex flex-col gap-3">
                 {[
-                  {
-                    text: "Bonjour Sophie ! Je suis PulsAI, votre assistant commercial. Comment puis-je vous aider ?",
-                    ai: true,
-                  },
-                  {
-                    text: "Je cherche une solution CRM pour mon équipe de 20 personnes.",
-                    ai: false,
-                  },
-                  {
-                    text: "Parfait ! Notre plan Business est idéal. Il inclut workflows automatisés, rapports avancés et intégrations. Voulez-vous une démo personnalisée ?",
-                    ai: true,
-                  },
+                  { text: "Bonjour Sophie ! Je suis PulsAI, votre assistant commercial. Comment puis-je vous aider ?", ai: true },
+                  { text: "Je cherche une solution CRM pour mon équipe de 20 personnes.", ai: false },
+                  { text: "Parfait ! Notre plan Business est idéal. Il inclut workflows automatisés, rapports avancés et intégrations. Voulez-vous une démo personnalisée ?", ai: true },
                   { text: "Oui, et quel est votre tarif ?", ai: false },
                 ].map(({ text, ai }, i) => (
                   <div
@@ -414,10 +356,7 @@ export default function LandingPage() {
       <div className="relative z-10 h-px bg-white/[0.06] mx-8" />
 
       {/* ─── FEATURES ─── */}
-      <section
-        id="fonctionnalités"
-        className="relative z-10 max-w-5xl mx-auto px-4 py-24"
-      >
+      <section id="fonctionnalités" className="relative z-10 max-w-5xl mx-auto px-4 py-24">
         <div className="text-center mb-16">
           <p className="text-[0.65rem] font-unbounded font-semibold text-[#3590E3] tracking-[0.2em] uppercase mb-3">
             Fonctionnalités
@@ -428,8 +367,7 @@ export default function LandingPage() {
             besoin, en un seul endroit
           </h2>
           <p className="text-white/40 text-sm mt-4 max-w-md mx-auto">
-            PulsAI réunit les outils essentiels d'un CRM moderne avec la
-            puissance de l'IA.
+            PulsAI réunit les outils essentiels d'un CRM moderne avec la puissance de l'IA.
           </p>
         </div>
 
@@ -442,13 +380,13 @@ export default function LandingPage() {
           }}
         >
           {[
-  { icon: <FaRobot />, title: "IA Conversationnelle", desc: "Engagez vos prospects 24h/24 avec une IA qui qualifie et convertit jusqu'à la signature.", delay: 0 },
-  { icon: < IoTicketOutline />, title: "Gestion de Tickets", desc: "Centralisez et automatisez votre support. Routage intelligent et SLA respectés.", delay: 100 },
-  { icon: <FiMail />, title: "Automation Marketing", desc: "Séquences personnalisées déclenchées par le comportement réel de vos contacts.", delay: 200 },
-  { icon: <FiBarChart2 />, title: "Analytics Avancés", desc: "Dashboards temps réel, prévisions de revenus et insights actionnables.", delay: 0 },
-  { icon: <FiLink />, title: "Intégrations Natives", desc: "Connectez Slack, Stripe, HubSpot, Zapier et 200+ applications.", delay: 100 },
-  { icon: <FiLock />, title: "Sécurité Enterprise", desc: "Chiffrement end-to-end, RGPD, SSO et contrôle d'accès granulaire.", delay: 200 },
-].map((f) => (
+            { icon: <FaRobot />, title: "IA Conversationnelle", desc: "Engagez vos prospects 24h/24 avec une IA qui qualifie et convertit jusqu'à la signature.", delay: 0 },
+            { icon: <IoTicketOutline />, title: "Gestion de Tickets", desc: "Centralisez et automatisez votre support. Routage intelligent et SLA respectés.", delay: 100 },
+            { icon: <FiMail />, title: "Automation Marketing", desc: "Séquences personnalisées déclenchées par le comportement réel de vos contacts.", delay: 200 },
+            { icon: <FiBarChart2 />, title: "Analytics Avancés", desc: "Dashboards temps réel, prévisions de revenus et insights actionnables.", delay: 0 },
+            { icon: <FiLink />, title: "Intégrations Natives", desc: "Connectez Slack, Stripe, HubSpot, Zapier et 200+ applications.", delay: 100 },
+            { icon: <FiLock />, title: "Sécurité Enterprise", desc: "Chiffrement end-to-end, RGPD, SSO et contrôle d'accès granulaire.", delay: 200 },
+          ].map((f) => (
             <FeatureCard key={f.title} {...f} />
           ))}
         </div>
@@ -457,10 +395,7 @@ export default function LandingPage() {
       <div className="relative z-10 h-px bg-white/[0.06] mx-8" />
 
       {/* ─── HOW IT WORKS ─── */}
-      <section
-        id="comment-ça-marche"
-        className="relative z-10 max-w-4xl mx-auto px-4 py-24"
-      >
+      <section id="comment-ça-marche" className="relative z-10 max-w-4xl mx-auto px-4 py-24">
         <div className="text-center mb-16">
           <p className="text-[0.65rem] font-unbounded font-semibold text-[#3590E3] tracking-[0.2em] uppercase mb-3">
             Comment ça marche
@@ -474,41 +409,25 @@ export default function LandingPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 relative">
           <div className="hidden md:block absolute top-7 left-[12%] right-[12%] h-px bg-gradient-to-r from-transparent via-[#3590E3]/50 to-transparent" />
           {[
-            {
-              num: "01",
-              title: "Capture",
-              desc: "Le visiteur entre en contact via chat, email ou formulaire.",
-            },
-            {
-              num: "02",
-              title: "Qualification",
-              desc: "L'IA analyse le profil et qualifie le lead en temps réel.",
-            },
-            {
-              num: "03",
-              title: "Nurturing",
-              desc: "Séquences automatiques personnalisées jusqu'à la décision.",
-            },
-            {
-              num: "04",
-              title: "Conversion",
-              desc: "Paiement sécurisé intégré directement dans la conversation.",
-            },
+            { num: "01", title: "Capture", desc: "Le visiteur entre en contact via chat, email ou formulaire." },
+            { num: "02", title: "Qualification", desc: "L'IA analyse le profil et qualifie le lead en temps réel." },
+            { num: "03", title: "Nurturing", desc: "Séquences automatiques personnalisées jusqu'à la décision." },
+            { num: "04", title: "Conversion", desc: "Paiement sécurisé intégré directement dans la conversation." },
           ].map(({ num, title, desc }, i) => {
             const [ref, visible] = useFadeIn();
             return (
               <div
                 key={num}
                 ref={ref}
-                className={`text-center relative z-10 transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}
+                className={`text-center relative z-10 transition-all duration-700 ${
+                  visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+                }`}
                 style={{ transitionDelay: `${i * 120}ms` }}
               >
                 <div className="w-14 h-14 rounded-full bg-[#3590E3]/10 border border-[#3590E3]/30 flex items-center justify-center font-unbounded font-black text-[#3590E3] text-lg mx-auto mb-4">
                   {num}
                 </div>
-                <h4 className="font-unbounded font-semibold text-sm mb-2">
-                  {title}
-                </h4>
+                <h4 className="font-unbounded font-semibold text-sm mb-2">{title}</h4>
                 <p className="text-xs text-white/40 leading-relaxed">{desc}</p>
               </div>
             );
@@ -519,10 +438,7 @@ export default function LandingPage() {
       <div className="relative z-10 h-px bg-white/[0.06] mx-8" />
 
       {/* ─── PRICING ─── */}
-      <section
-        id="tarifs"
-        className="relative z-10 max-w-5xl mx-auto px-4 py-24"
-      >
+      <section id="tarifs" className="relative z-10 max-w-5xl mx-auto px-4 py-24">
         <div className="text-center mb-16">
           <p className="text-[0.65rem] font-unbounded font-semibold text-[#3590E3] tracking-[0.2em] uppercase mb-3">
             Tarifs
@@ -539,27 +455,14 @@ export default function LandingPage() {
             name="Starter"
             price="29€"
             desc="Parfait pour démarrer"
-            features={[
-              "2 agents IA inclus",
-              "500 conversations/mois",
-              "Tickets basiques",
-              "Rapports standards",
-              "Support email",
-            ]}
+            features={["2 agents IA inclus", "500 conversations/mois", "Tickets basiques", "Rapports standards", "Support email"]}
             delay={0}
           />
           <PricingCard
             name="Business"
             price="89€"
             desc="Pour les équipes en croissance"
-            features={[
-              "10 agents IA",
-              "Conversations illimitées",
-              "Automation marketing",
-              "Analytics avancés",
-              "Intégrations natives",
-              "Support 24/7",
-            ]}
+            features={["10 agents IA", "Conversations illimitées", "Automation marketing", "Analytics avancés", "Intégrations natives", "Support 24/7"]}
             featured
             delay={100}
           />
@@ -567,14 +470,7 @@ export default function LandingPage() {
             name="Enterprise"
             price="Sur mesure"
             desc="Pour les grandes organisations"
-            features={[
-              "Agents illimités",
-              "SLA garanti",
-              "SSO & SAML",
-              "On-premise possible",
-              "CSM dédié",
-              "Formation incluse",
-            ]}
+            features={["Agents illimités", "SLA garanti", "SSO & SAML", "On-premise possible", "CSM dédié", "Formation incluse"]}
             delay={200}
           />
         </div>
@@ -607,16 +503,10 @@ export default function LandingPage() {
         <span className="font-unbounded font-black text-lg bg-gradient-to-r from-[#3590E3] to-[#BAF09D] bg-clip-text text-transparent">
           PulsAI
         </span>
-        <p className="text-xs text-white/30">
-          © 2026 PulsAI · Tous droits réservés
-        </p>
+        <p className="text-xs text-white/30">© 2026 PulsAI · Tous droits réservés</p>
         <div className="flex gap-6 text-xs text-white/30">
           {["Confidentialité", "Conditions", "Contact"].map((l) => (
-            <a
-              key={l}
-              href="#"
-              className="hover:text-white/60 transition-colors"
-            >
+            <a key={l} href="#" className="hover:text-white/60 transition-colors">
               {l}
             </a>
           ))}

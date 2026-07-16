@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { login, forgotPassword } from "../services/auth";
+import { useAuth } from "../hooks/useAuth";
 
 /* ─── Composants réutilisables ─── */
 function Input({ label, id, error, type = "text", rightSlot, ...props }) {
@@ -126,6 +127,7 @@ function ForgotModal({ onClose }) {
 /* ─── PAGE CONNEXION ─── */
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
 
   const [email, setEmail]           = useState("");
   const [password, setPassword]     = useState("");
@@ -149,12 +151,10 @@ export default function LoginPage() {
     try {
       const data = await login({ email, password });
 
-      // Redirection selon le rôle
-      if (data.company.is_admin) {
-        navigate("/dashboard");
-      } else {
-        navigate("/dashboard"); // Pour l'instant même dashboard, on différenciera plus tard
-      }
+      // Mettre à jour le contexte auth immédiatement (évite user=null dans le dashboard)
+      setUser(data.company);
+
+      navigate("/dashboard");
 
     } catch (err) {
       // Cas spécial : email non vérifié

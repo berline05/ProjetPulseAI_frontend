@@ -1,12 +1,7 @@
 // src/services/auth.js
 // Service d'authentification — connecte le frontend React au backend FastAPI
 
-//const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-// Django (auth, users, CRM)
-const API_BASE = "http://localhost:8000";
-
-// FastAPI (IA)
-const AI_API = "http://localhost:8001/api";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8001";
 
 // ─── Helpers ────────────────────────────────────────────
 
@@ -69,7 +64,7 @@ async function apiFetch(path, options = {}) {
 // ─── INSCRIPTION ────────────────────────────────────────
 
 export async function register({ firstName, lastName, email, companyName, password }) {
-  return apiFetch("/api/auth/register/", {
+  return apiFetch("/api/auth/register", {
     method: "POST",
     body: JSON.stringify({
       first_name:   firstName,
@@ -85,16 +80,15 @@ export async function register({ firstName, lastName, email, companyName, passwo
 // ─── VÉRIFICATION EMAIL ─────────────────────────────────
 
 export async function verifyEmail(token) {
-  return apiFetch("/api/auth/verify-email/", {
-    method: "POST",
-    body: JSON.stringify({ token }),
+  return apiFetch(`/api/auth/verify-email?token=${token}`, {
+    method: "GET",
   });
 }
 
 // ─── CONNEXION ──────────────────────────────────────────
 
 export async function login({ email, password }) {
-  const data = await apiFetch("/api/auth/login/", {
+  const data = await apiFetch("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
   });
@@ -116,14 +110,14 @@ export function logout() {
 // ─── MON PROFIL ─────────────────────────────────────────
 
 export async function getMe() {
-  return apiFetch("/api/auth/me/");
+  return apiFetch("/api/auth/me");
 }
 
 
 // ─── MOT DE PASSE OUBLIÉ ────────────────────────────────
 
 export async function forgotPassword(email) {
-  return apiFetch("/api/auth/forgot-password/", {
+  return apiFetch("/api/auth/forgot-password", {
     method: "POST",
     body: JSON.stringify({ email }),
   });
@@ -133,7 +127,7 @@ export async function forgotPassword(email) {
 // ─── RÉINITIALISER MOT DE PASSE ─────────────────────────
 
 export async function resetPassword({ token, newPassword }) {
-  return apiFetch("/api/auth/reset-password/", {
+  return apiFetch("/api/auth/reset-password", {
     method: "POST",
     body: JSON.stringify({ token, new_password: newPassword }),
   });
